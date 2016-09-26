@@ -31,7 +31,7 @@ func (req *Request) Substitute(from string, to string) {
 	req.Params = strings.Replace(req.Params, from, to, -1)
 }
 
-func run(num int, url string, dataFile string, substitutions *map[string]string, sleep int) {
+func run(num int, url string, dataFile string, substitutions *map[string]interface{}, sleep int) {
 	//Establishing websocket connection
 	headers := http.Header{}
 	headers.Add("Origin", "http://koroandr.vision.tv.v.netstream.ru")
@@ -79,7 +79,15 @@ func run(num int, url string, dataFile string, substitutions *map[string]string,
 		req.RenewId()
 
 		for key, value := range *substitutions {
-			req.Substitute(fmt.Sprintf("{{%s}}", key), value)
+			switch value.(type) {
+				case string:
+					req.Substitute(fmt.Sprintf("{{%s}}", key), value.(string))
+				case []interface{}:
+					arr := value.([]interface{})
+					if val, ok := arr[num % len(arr)].(string); ok {
+						req.Substitute(fmt.Sprintf("{{%s}}", key), val)
+					}
+			}
 		}
 
 		s, err := json.Marshal(req)
@@ -117,7 +125,7 @@ func main() {
 	dbg = *debug
 
 	//Initializing substitutions map
-	substitutions := make(map[string]string)
+	substitutions := make(map[string]interface{})
 
 	if (substitutionsFile != nil && *substitutionsFile != "") {
 		substitutionsText, err := ioutil.ReadFile(*substitutionsFile)
