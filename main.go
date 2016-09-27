@@ -31,7 +31,7 @@ func (req *Request) Substitute(from string, to string) {
 	req.Params = strings.Replace(req.Params, from, to, -1)
 }
 
-func run(num int, url string, dataFile string, substitutions *map[string]interface{}, sleep int) {
+func run(num int, url string, dataFile string, substitutions *map[string]interface{}, sleep int, rotate bool) {
 	//Establishing websocket connection
 	headers := http.Header{}
 	headers.Add("Origin", "http://koroandr.vision.tv.v.netstream.ru")
@@ -60,26 +60,28 @@ func run(num int, url string, dataFile string, substitutions *map[string]interfa
 
 	log.Printf("[%d] started", num)
 
-	//Reading the data file line by line, updating JSON and sending it to WS
-	file, err := os.Open(dataFile)
-	if (err != nil) {
-		panic(err)
-	}
-	scanner := bufio.NewScanner(file)
-	scanner.Split(bufio.ScanLines)
 
-	for (scanner.Scan()) {
-		req := Request{}
-		err := json.Unmarshal(scanner.Bytes(), &req)
-
+	doSend := func () {
+		//Reading the data file line by line, updating JSON and sending it to WS
+		file, err := os.Open(dataFile)
 		if (err != nil) {
 			panic(err)
 		}
+		scanner := bufio.NewScanner(file)
+		scanner.Split(bufio.ScanLines)
 
-		req.RenewId()
+		for (scanner.Scan()) {
+			req := Request{}
+			err := json.Unmarshal(scanner.Bytes(), &req)
 
-		for key, value := range *substitutions {
-			switch value.(type) {
+			if (err != nil) {
+				panic(err)
+			}
+
+			req.RenewId()
+
+			for key, value := range *substitutions {
+				switch value.(type) {
 				case string:
 					req.Substitute(fmt.Sprintf("{{%s}}", key), value.(string))
 				case []interface{}:
@@ -87,26 +89,39 @@ func run(num int, url string, dataFile string, substitutions *map[string]interfa
 					if val, ok := arr[num % len(arr)].(string); ok {
 						req.Substitute(fmt.Sprintf("{{%s}}", key), val)
 					}
+				}
 			}
+
+			s, err := json.Marshal(req)
+			if (err != nil) {
+				panic(err)
+			}
+
+			if dbg {
+				log.Printf("[%d] req: %s", num, s)
+			}
+
+			conn.WriteMessage(websocket.TextMessage, []byte(s))
+
+			time.Sleep(time.Duration(sleep) * time.Millisecond)
 		}
+	}
 
-		s, err := json.Marshal(req)
-		if (err != nil) {
-			panic(err)
+	finished := false
+	for !finished {
+		doSend()
+		if (!rotate) {
+			finished = true
 		}
-
-		if dbg {
-			log.Printf("[%d] req: %s", num, s)
-		}
-
-		conn.WriteMessage(websocket.TextMessage, []byte(s))
-
-		time.Sleep(time.Duration(sleep) * time.Millisecond)
 	}
 
 
 	log.Printf("[%d] finished", num)
 	childDone<-"ok"
+}
+
+func sendLog(dataFile string) {
+
 }
 
 var dbg bool;
@@ -120,6 +135,7 @@ func main() {
 	sleep := flag.Int("sleep", 0, "Sleep time between requests in milliseconds")
 	substitutionsFile := flag.String("substitutions", "", "Data file")
 	debug := flag.Bool("debug", false, "Show debug output")
+	rotate := flag.Bool("rotate", false, "cycle logs")
 	flag.Parse()
 
 	dbg = *debug
@@ -140,8 +156,9 @@ func main() {
 
 	childDone = make(chan interface{})
 
+	//Spawning child processes to replay data.log
 	for i := 0; i < *procCount; i++ {
-		go run(i, *url, *dataFile, &substitutions, *sleep)
+		go run(i, *url, *dataFile, &substitutions, *sleep, *rotate)
 	}
 
 	for i := 0; i < *procCount; i++ {
