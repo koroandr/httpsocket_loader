@@ -31,10 +31,14 @@ func (req *Request) Substitute(from string, to string) {
 	req.Params = strings.Replace(req.Params, from, to, -1)
 }
 
-func run(num int, url string, dataFile string, substitutions *map[string]interface{}, sleep int, rotate bool) {
+func run(num int, url string, origin string, dataFile string, substitutions *map[string]interface{}, sleep int, rotate bool) {
 	//Establishing websocket connection
 	headers := http.Header{}
-	headers.Add("Origin", "http://koroandr.vision.tv.v.netstream.ru")
+
+	//Set the Origin header, if present
+	if (origin != "") {
+		headers.Add("Origin", origin)
+	}
 	conn, _, err := websocket.DefaultDialer.Dial(url, headers)
 	if (err != nil) {
 		panic(err)
@@ -120,10 +124,6 @@ func run(num int, url string, dataFile string, substitutions *map[string]interfa
 	childDone<-"ok"
 }
 
-func sendLog(dataFile string) {
-
-}
-
 var dbg bool;
 var childDone chan interface {};
 
@@ -131,6 +131,7 @@ func main() {
 	//Parsing command-line arguments
 	dataFile := flag.String("data", "data.log", "Data file")
 	url := flag.String("url", "", "WebSocket endpoint url")
+	origin := flag.String("origin", "", "Origin header")
 	procCount := flag.Int("proc", 1, "Number of processes to run")
 	sleep := flag.Int("sleep", 0, "Sleep time between requests in milliseconds")
 	substitutionsFile := flag.String("substitutions", "", "Data file")
@@ -158,7 +159,7 @@ func main() {
 
 	//Spawning child processes to replay data.log
 	for i := 0; i < *procCount; i++ {
-		go run(i, *url, *dataFile, &substitutions, *sleep, *rotate)
+		go run(i, *url, *origin, *dataFile, &substitutions, *sleep, *rotate)
 	}
 
 	for i := 0; i < *procCount; i++ {
