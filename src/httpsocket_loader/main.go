@@ -1,14 +1,10 @@
 package main
 
 import (
-	"github.com/gorilla/websocket"
 	"log"
-	"net/http"
 	"time"
 	"math/rand"
 	"flag"
-	"bufio"
-	"os"
 	"encoding/json"
 	"strings"
 	"io/ioutil"
@@ -32,100 +28,18 @@ func (req *Request) Substitute(from string, to string) {
 }
 
 func run(num int, url string, origin string, dataFile string, substitutions *map[string]interface{}, sleep int, rotate bool) {
-	//Establishing websocket connection
-	headers := http.Header{}
-
-	//Set the Origin header, if present
-	if (origin != "") {
-		headers.Add("Origin", origin)
-	}
-	conn, _, err := websocket.DefaultDialer.Dial(url, headers)
-	if (err != nil) {
-		panic(err)
-	}
-	defer conn.Close()
-
-	//Response handling
-	done := make(chan string)
+	loader := NewLoader(num, url, origin, dataFile, substitutions, sleep, rotate)
+	loader.Connect()
+	defer loader.Close()
 	go func() {
-		defer conn.Close()
-		defer close(done)
-		for {
-			_, message, err := conn.ReadMessage()
-			if err != nil {
-				//done <- err.Error()
-				return
-			}
-			if dbg {
-				log.Printf("[%d] recv: %s", num, message)
-			}
-		}
+		status := <- loader.Finish
+		childDone <- status
 	}()
-
-	log.Printf("[%d] started", num)
-
-
-	doSend := func () {
-		//Reading the data file line by line, updating JSON and sending it to WS
-		file, err := os.Open(dataFile)
-		if (err != nil) {
-			panic(err)
-		}
-		scanner := bufio.NewScanner(file)
-		scanner.Split(bufio.ScanLines)
-
-		for (scanner.Scan()) {
-			req := Request{}
-			err := json.Unmarshal(scanner.Bytes(), &req)
-
-			if (err != nil) {
-				panic(err)
-			}
-
-			req.RenewId()
-
-			for key, value := range *substitutions {
-				switch value.(type) {
-				case string:
-					req.Substitute(fmt.Sprintf("{{%s}}", key), value.(string))
-				case []interface{}:
-					arr := value.([]interface{})
-					if val, ok := arr[num % len(arr)].(string); ok {
-						req.Substitute(fmt.Sprintf("{{%s}}", key), val)
-					}
-				}
-			}
-
-			s, err := json.Marshal(req)
-			if (err != nil) {
-				panic(err)
-			}
-
-			if dbg {
-				log.Printf("[%d] req: %s", num, s)
-			}
-
-			conn.WriteMessage(websocket.TextMessage, []byte(s))
-
-			time.Sleep(time.Duration(sleep) * time.Millisecond)
-		}
-	}
-
-	finished := false
-	for !finished {
-		doSend()
-		if (!rotate) {
-			finished = true
-		}
-	}
-
-
-	log.Printf("[%d] finished", num)
-	childDone<-"ok"
+	go loader.Run()
 }
 
 var dbg bool;
-var childDone chan interface {};
+var childDone chan string;
 
 func main() {
 	//Parsing command-line arguments
@@ -155,11 +69,11 @@ func main() {
 		}
 	}
 
-	childDone = make(chan interface{})
+	childDone = make(chan string)
 
 	//Spawning child processes to replay data.log
 	for i := 0; i < *procCount; i++ {
-		go run(i, *url, *origin, *dataFile, &substitutions, *sleep, *rotate)
+		run(i, *url, *origin, *dataFile, &substitutions, *sleep, *rotate)
 	}
 
 	for i := 0; i < *procCount; i++ {
