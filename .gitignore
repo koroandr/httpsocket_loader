@@ -1,3 +1,6 @@
 .idea
 data.log
 substitutions.json
+bin
+_vendor/bin
+_vendor/pkg
