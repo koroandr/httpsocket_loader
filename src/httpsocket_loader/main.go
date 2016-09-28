@@ -30,7 +30,6 @@ func (req *Request) Substitute(from string, to string) {
 func run(num int, url string, origin string, dataFile string, substitutions *map[string]interface{}, sleep int, rotate bool) {
 	loader := NewLoader(num, url, origin, dataFile, substitutions, sleep, rotate)
 	loader.Connect()
-	defer loader.Close()
 	go func() {
 		status := <- loader.Finish
 		childDone <- status

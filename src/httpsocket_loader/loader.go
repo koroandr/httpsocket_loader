@@ -12,16 +12,19 @@ import (
 )
 
 type Loader struct {
-	num           int
-	url           string
-	origin        string
-	dataFile      string
-	substitutions *map[string]interface{}
-	sleep         int
-	rotate        bool
+	num             int
+	url             string
+	origin          string
+	dataFile        string
+	substitutions   *map[string]interface{}
+	sleep           int
+	rotate          bool
 
-	Finish        chan string
-	conn          *websocket.Conn
+	Finish          chan string
+	conn            *websocket.Conn
+	send_timestamps map[string]int64
+	sumTime         int64
+	requestsCount	int
 }
 
 func NewLoader(num int, url string, origin string, dataFile string, substitutions *map[string]interface{}, sleep int, rotate bool) Loader {
@@ -35,6 +38,9 @@ func NewLoader(num int, url string, origin string, dataFile string, substitution
 		rotate,
 		make(chan string),
 		nil,
+		make(map[string]int64),
+		0,
+		0,
 	}
 }
 
@@ -54,17 +60,24 @@ func (loader *Loader) Connect() {
 
 	//Response handling
 	done := make(chan string)
+
 	go func() {
 		defer conn.Close()
 		defer close(done)
 		for {
 			_, message, err := conn.ReadMessage()
 			if err != nil {
-				//done <- err.Error()
 				return
 			}
 			if dbg {
 				log.Printf("[%d] recv: %s", loader.num, message)
+			}
+
+			var resp RpcResp
+			if (json.Unmarshal(message, &resp) != nil) {
+				log.Printf("[%d] strange response: %s", loader.num, message)
+			} else {
+				loader.recieve(resp.Id)
 			}
 		}
 	}()
@@ -77,19 +90,27 @@ func (loader *Loader) Run() {
 	finished := false
 
 	for !finished {
-		log.Printf("[%d] run iteration %d", loader.num, iter)
+		//Summary time for all requests
+		loader.sumTime = 0
+		loader.requestsCount = 0
+
 		loader.send()
-		log.Printf("[%d] finished iteration %d", loader.num, iter)
+
+		if (loader.requestsCount > 0) {
+			log.Printf("[%d] - iter %d - average time: %d ms", loader.num, iter, loader.sumTime / int64(loader.requestsCount) / 1000000)
+		} else {
+			log.Printf("[%d] - iter %d - no successful requests", loader.num, iter)
+		}
 
 		if (!loader.rotate) {
 			finished = true
 		}
+
+		iter += 1
 	}
 	log.Printf("[%d] run completed", loader.num)
 	loader.Finish <- "ok"
-}
 
-func (loader *Loader) Close() {
 	loader.conn.Close()
 }
 
@@ -134,7 +155,17 @@ func (loader *Loader) send() {
 		}
 
 		loader.conn.WriteMessage(websocket.TextMessage, []byte(s))
+		loader.send_timestamps[req.Id] = time.Now().UnixNano()
 
 		time.Sleep(time.Duration(loader.sleep) * time.Millisecond)
 	}
+}
+
+func (loader *Loader) recieve(id string) {
+	loader.sumTime += (time.Now().UnixNano() - loader.send_timestamps[id])
+	loader.requestsCount += 1
+}
+
+type RpcResp struct {
+	Id string `json:"id"`
 }
