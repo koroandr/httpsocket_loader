@@ -57,11 +57,17 @@ func main() {
 	url := flag.String("url", "", "WebSocket endpoint url")
 	origin := flag.String("origin", "", "Origin header")
 	procCount := flag.Int("proc", 1, "Number of processes to run")
-	sleep := flag.Int("sleep", 0, "Sleep time between requests in milliseconds")
+	sleep := flag.Int("sleep", 100, "Sleep time between requests in milliseconds")
 	substitutionsFile := flag.String("substitutions", "", "Data file")
 	debug := flag.Bool("debug", false, "Show debug output")
 	rotate := flag.Bool("rotate", false, "cycle logs")
+	help := flag.Bool("help", false, "Print this help")
 	flag.Parse()
+
+	if (*help) {
+		flag.Usage()
+		return
+	}
 
 	dbg = *debug
 
@@ -76,6 +82,7 @@ func main() {
 		err = json.Unmarshal(substitutionsText, &substitutions)
 		if (err != nil) {
 			panic(err)
+
 		}
 	}
 
