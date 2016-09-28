@@ -3,8 +3,6 @@ package main
 import (
 	"net/http"
 	"github.com/gorilla/websocket"
-	"os"
-	"bufio"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -15,7 +13,7 @@ type Loader struct {
 	num             int
 	url             string
 	origin          string
-	dataFile        string
+	data            *[]Request
 	substitutions   *map[string]interface{}
 	sleep           int
 	rotate          bool
@@ -24,15 +22,15 @@ type Loader struct {
 	conn            *websocket.Conn
 	send_timestamps map[string]int64
 	sumTime         int64
-	requestsCount	int
+	requestsCount   int
 }
 
-func NewLoader(num int, url string, origin string, dataFile string, substitutions *map[string]interface{}, sleep int, rotate bool) Loader {
+func NewLoader(num int, url string, origin string, data *[]Request, substitutions *map[string]interface{}, sleep int, rotate bool) Loader {
 	return Loader{
 		num,
 		url,
 		origin,
-		dataFile,
+		data,
 		substitutions,
 		sleep,
 		rotate,
@@ -115,24 +113,12 @@ func (loader *Loader) Run() {
 }
 
 func (loader *Loader) send() {
-	//Reading the data file line by line, updating JSON and sending it to WS
-	file, err := os.Open(loader.dataFile)
-	if (err != nil) {
-		panic(err)
-	}
-	scanner := bufio.NewScanner(file)
-	scanner.Split(bufio.ScanLines)
-
-	for (scanner.Scan()) {
-		req := Request{}
-		err := json.Unmarshal(scanner.Bytes(), &req)
-
-		if (err != nil) {
-			panic(err)
-		}
-
+	//Updating JSON with process-specific substitutions and sending it to WS
+	for _, req := range *loader.data {
+		//Setting new id to prevent conflicts between different loaders
 		req.RenewId()
 
+		//Substituting some data (mustache-style)
 		for key, value := range *loader.substitutions {
 			switch value.(type) {
 			case string:
