@@ -78,9 +78,8 @@ func (loader *Loader) Connect() {
 
 func (loader *Loader) Run() {
 	iter := 0
-	finished := false
 
-	for !finished {
+	for {
 		//Summary time for all requests
 		loader.sumTime = 0
 		loader.requestsCount = 0
@@ -94,7 +93,7 @@ func (loader *Loader) Run() {
 		}
 
 		if (!loader.rotate) {
-			finished = true
+			break
 		}
 
 		iter += 1
