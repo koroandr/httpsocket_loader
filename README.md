@@ -36,7 +36,7 @@ bin/httpsocket_loader -url ws://websocket.example.com/ws -substitutions substitu
 }
 ```
 
-Substitution file is a plain JSON object with string keys and string or array of strings values. Substitution keys are placed in data files within double brackets.
+Substitution file is a plain JSON object with string keys and string or array of strings values. Substitution keys are placed in data files within double curly brackets.
 
 * If the value is a string, then `key->value` substitution is applied
 * If the value is an array of strings, then `key->value[proc_num % value.length]` substitution is applied, where proc_num is a number of current loader thread
