@@ -9,15 +9,18 @@ import (
 	"time"
 )
 
-type Loader struct {
-	num           int
-	url           string
-	origin        string
-	data          []Request
-	substitutions map[string]interface{}
-	sleep         int
-	rotate        bool
+type LoaderOptions struct {
+	Num           int
+	Url           string
+	Origin        string
+	Requests      []Request
+	Substitutions map[string]interface{}
+	Sleep         int
+	Rotate        bool
+}
 
+type Loader struct {
+	LoaderOptions
 	Finish          chan string
 	conn            *websocket.Conn
 	send_timestamps map[string]time.Time
@@ -25,15 +28,9 @@ type Loader struct {
 	requestsCount   int
 }
 
-func NewLoader(num int, url string, origin string, data []Request, substitutions map[string]interface{}, sleep int, rotate bool) *Loader {
+func NewLoader(opts *LoaderOptions) *Loader {
 	return &Loader{
-		num:             num,
-		url:             url,
-		origin:          origin,
-		data:            data,
-		substitutions:   substitutions,
-		sleep:           sleep,
-		rotate:          rotate,
+		LoaderOptions:   *opts,
 		Finish:          make(chan string),
 		send_timestamps: make(map[string]time.Time),
 	}
@@ -44,10 +41,10 @@ func (loader *Loader) Connect() {
 	headers := http.Header{}
 
 	//Set the Origin header, if present
-	if loader.origin != "" {
-		headers.Add("Origin", loader.origin)
+	if loader.Origin != "" {
+		headers.Add("Origin", loader.Origin)
 	}
-	conn, _, err := websocket.DefaultDialer.Dial(loader.url, headers)
+	conn, _, err := websocket.DefaultDialer.Dial(loader.Url, headers)
 	if err != nil {
 		panic(err)
 	}
@@ -61,19 +58,19 @@ func (loader *Loader) Connect() {
 				return
 			}
 			if dbg {
-				log.Printf("[%d] recv: %s", loader.num, message)
+				log.Printf("[%d] recv: %s", loader.Num, message)
 			}
 
 			var resp RpcResp
 			if json.Unmarshal(message, &resp) != nil {
-				log.Printf("[%d] strange response: %s", loader.num, message)
+				log.Printf("[%d] strange response: %s", loader.Num, message)
 			} else {
 				loader.recieve(resp.Id)
 			}
 		}
 	}()
 
-	log.Printf("[%d] established connection", loader.num)
+	log.Printf("[%d] established connection", loader.Num)
 }
 
 func (loader *Loader) Run() {
@@ -87,18 +84,18 @@ func (loader *Loader) Run() {
 		loader.send()
 
 		if loader.requestsCount > 0 {
-			log.Printf("[%d] - iter %d - average time: %d ms", loader.num, iter, loader.sumTime.Nanoseconds()/int64(loader.requestsCount)/1000000)
+			log.Printf("[%d] - iter %d - average time: %d ms", loader.Num, iter, loader.sumTime.Nanoseconds()/int64(loader.requestsCount)/1000000)
 		} else {
-			log.Printf("[%d] - iter %d - no successful requests", loader.num, iter)
+			log.Printf("[%d] - iter %d - no successful requests", loader.Num, iter)
 		}
 
-		if !loader.rotate {
+		if !loader.Rotate {
 			break
 		}
 
 		iter += 1
 	}
-	log.Printf("[%d] run completed", loader.num)
+	log.Printf("[%d] run completed", loader.Num)
 	loader.Finish <- "ok"
 
 	loader.conn.Close()
@@ -106,17 +103,17 @@ func (loader *Loader) Run() {
 
 func (loader *Loader) send() {
 	//Updating JSON with process-specific substitutions and sending it to WS
-	for _, req := range loader.data {
+	for _, req := range loader.Requests {
 		//Setting new id to prevent conflicts between different loaders
 		req.RenewId()
 
 		//Substituting some data (mustache-style)
-		for key, value := range loader.substitutions {
+		for key, value := range loader.Substitutions {
 			switch value := value.(type) {
 			case string:
 				req.Substitute(fmt.Sprintf("{{%s}}", key), value)
 			case []interface{}:
-				if val, ok := value[loader.num%len(value)].(string); ok {
+				if val, ok := value[loader.Num%len(value)].(string); ok {
 					req.Substitute(fmt.Sprintf("{{%s}}", key), val)
 				}
 			}
@@ -126,19 +123,19 @@ func (loader *Loader) send() {
 		dieOnError(err)
 
 		if dbg {
-			log.Printf("[%d] req: %s", loader.num, s)
+			log.Printf("[%d] req: %s", loader.Num, s)
 		}
 
 		err = loader.conn.WriteMessage(websocket.TextMessage, []byte(s))
 
 		if err != nil {
-			log.Printf("[%d] Got error while sending a message", loader.num)
+			log.Printf("[%d] Got error while sending a message", loader.Num)
 			log.Println(err.Error())
 		} else {
 			loader.send_timestamps[req.Id] = time.Now()
 		}
 
-		time.Sleep(time.Duration(loader.sleep) * time.Millisecond)
+		time.Sleep(time.Duration(loader.Sleep) * time.Millisecond)
 	}
 }
 

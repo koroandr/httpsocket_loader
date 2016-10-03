@@ -9,8 +9,8 @@ import (
 	"os"
 )
 
-func run(num int, url string, origin string, data []Request, substitutions map[string]interface{}, sleep int, rotate bool) {
-	loader := NewLoader(num, url, origin, data, substitutions, sleep, rotate)
+func run(opts *LoaderOptions) {
+	loader := NewLoader(opts)
 	loader.Connect()
 	go func() {
 		status := <-loader.Finish
@@ -78,7 +78,15 @@ func main() {
 
 	//Spawning child processes to replay data.log
 	for i := 0; i < *procCount; i++ {
-		run(i, *url, *origin, requests, substitutions, *sleep, *rotate)
+		run(&LoaderOptions{
+			Num:           i,
+			Url:           *url,
+			Origin:        *origin,
+			Requests:      requests,
+			Substitutions: substitutions,
+			Sleep:         *sleep,
+			Rotate:        *rotate,
+		})
 	}
 
 	for i := 0; i < *procCount; i++ {
