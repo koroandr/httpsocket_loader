@@ -123,9 +123,7 @@ func (loader *Loader) send() {
 		}
 
 		s, err := json.Marshal(req)
-		if (err != nil) {
-			panic(err)
-		}
+		dieOnError(err)
 
 		if dbg {
 			log.Printf("[%d] req: %s", loader.num, s)

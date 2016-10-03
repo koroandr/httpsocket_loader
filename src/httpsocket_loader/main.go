@@ -23,9 +23,8 @@ func run(num int, url string, origin string, data []Request, substitutions map[s
 func readRequests(filename string) []Request {
 	file, err := os.Open(filename)
 	defer file.Close()
-	if (err != nil) {
-		panic(err)
-	}
+
+	dieOnError(err)
 
 	requests := make([]Request, 0)
 
@@ -37,10 +36,7 @@ func readRequests(filename string) []Request {
 
 		err := json.Unmarshal(scanner.Bytes(), &req)
 
-		if (err != nil) {
-			panic(err)
-		}
-
+		dieOnError(err)
 
 		requests = append(requests, req)
 	}
@@ -77,14 +73,10 @@ func main() {
 
 	if (substitutionsFile != nil && *substitutionsFile != "") {
 		substitutionsText, err := ioutil.ReadFile(*substitutionsFile)
-		if (err != nil) {
-			panic(err)
-		}
-		err = json.Unmarshal(substitutionsText, &substitutions)
-		if (err != nil) {
-			panic(err)
+		dieOnError(err)
 
-		}
+		err = json.Unmarshal(substitutionsText, &substitutions)
+		dieOnError(err)
 	}
 
 	childDone = make(chan string)
