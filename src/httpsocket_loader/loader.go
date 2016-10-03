@@ -20,8 +20,8 @@ type Loader struct {
 
 	Finish          chan string
 	conn            *websocket.Conn
-	send_timestamps map[string]int64
-	sumTime         int64
+	send_timestamps map[string]time.Time
+	sumTime         time.Duration
 	requestsCount   int
 }
 
@@ -35,7 +35,7 @@ func NewLoader(num int, url string, origin string, data *[]Request, substitution
 		sleep: sleep,
 		rotate: rotate,
 		Finish: make(chan string),
-		send_timestamps: make(map[string]int64),
+		send_timestamps: make(map[string]time.Time),
 	}
 }
 
@@ -87,7 +87,7 @@ func (loader *Loader) Run() {
 		loader.send()
 
 		if (loader.requestsCount > 0) {
-			log.Printf("[%d] - iter %d - average time: %d ms", loader.num, iter, loader.sumTime / int64(loader.requestsCount) / 1000000)
+			log.Printf("[%d] - iter %d - average time: %d ms", loader.num, iter, loader.sumTime.Nanoseconds() / int64(loader.requestsCount) / 1000000)
 		} else {
 			log.Printf("[%d] - iter %d - no successful requests", loader.num, iter)
 		}
@@ -137,7 +137,7 @@ func (loader *Loader) send() {
 			log.Println("Got error while sending a message")
 			log.Println(err.Error())
 		} else {
-			loader.send_timestamps[req.Id] = time.Now().UnixNano()
+			loader.send_timestamps[req.Id] = time.Now()
 		}
 
 		time.Sleep(time.Duration(loader.sleep) * time.Millisecond)
@@ -145,7 +145,7 @@ func (loader *Loader) send() {
 }
 
 func (loader *Loader) recieve(id string) {
-	loader.sumTime += (time.Now().UnixNano() - loader.send_timestamps[id])
+	loader.sumTime += time.Since(loader.send_timestamps[id])
 	loader.requestsCount += 1
 }
 
