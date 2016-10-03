@@ -9,7 +9,7 @@ import (
 	"bufio"
 )
 
-func run(num int, url string, origin string, data *[]Request, substitutions *map[string]interface{}, sleep int, rotate bool) {
+func run(num int, url string, origin string, data []Request, substitutions map[string]interface{}, sleep int, rotate bool) {
 	loader := NewLoader(num, url, origin, data, substitutions, sleep, rotate)
 	loader.Connect()
 	go func() {
@@ -20,7 +20,7 @@ func run(num int, url string, origin string, data *[]Request, substitutions *map
 }
 
 // Load JSON-RPC requests from data file (they must be placed line by line)
-func readRequests(filename string) *[]Request {
+func readRequests(filename string) []Request {
 	file, err := os.Open(filename)
 	if (err != nil) {
 		panic(err)
@@ -44,7 +44,7 @@ func readRequests(filename string) *[]Request {
 		requests = append(requests, req)
 	}
 
-	return &requests
+	return requests
 }
 
 
@@ -92,7 +92,7 @@ func main() {
 
 	//Spawning child processes to replay data.log
 	for i := 0; i < *procCount; i++ {
-		run(i, *url, *origin, requests, &substitutions, *sleep, *rotate)
+		run(i, *url, *origin, requests, substitutions, *sleep, *rotate)
 	}
 
 	for i := 0; i < *procCount; i++ {

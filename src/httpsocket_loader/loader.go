@@ -13,8 +13,8 @@ type Loader struct {
 	num             int
 	url             string
 	origin          string
-	data            *[]Request
-	substitutions   *map[string]interface{}
+	data            []Request
+	substitutions   map[string]interface{}
 	sleep           int
 	rotate          bool
 
@@ -25,7 +25,7 @@ type Loader struct {
 	requestsCount   int
 }
 
-func NewLoader(num int, url string, origin string, data *[]Request, substitutions *map[string]interface{}, sleep int, rotate bool) *Loader {
+func NewLoader(num int, url string, origin string, data []Request, substitutions map[string]interface{}, sleep int, rotate bool) *Loader {
 	return &Loader{
 		num: num,
 		url: url,
@@ -106,12 +106,12 @@ func (loader *Loader) Run() {
 
 func (loader *Loader) send() {
 	//Updating JSON with process-specific substitutions and sending it to WS
-	for _, req := range *loader.data {
+	for _, req := range loader.data {
 		//Setting new id to prevent conflicts between different loaders
 		req.RenewId()
 
 		//Substituting some data (mustache-style)
-		for key, value := range *loader.substitutions {
+		for key, value := range loader.substitutions {
 			switch value := value.(type) {
 			case string:
 				req.Substitute(fmt.Sprintf("{{%s}}", key), value)
@@ -134,7 +134,7 @@ func (loader *Loader) send() {
 		err = loader.conn.WriteMessage(websocket.TextMessage, []byte(s))
 
 		if (err != nil) {
-			log.Println("Got error while sending a message")
+			log.Printf("[%d] Got error while sending a message", loader.num)
 			log.Println(err.Error())
 		} else {
 			loader.send_timestamps[req.Id] = time.Now()
