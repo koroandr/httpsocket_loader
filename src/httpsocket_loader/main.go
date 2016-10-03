@@ -7,15 +7,12 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"sync"
 )
 
 func run(opts *LoaderOptions) {
 	loader := NewLoader(opts)
 	loader.Connect()
-	go func() {
-		status := <-loader.Finish
-		childDone <- status
-	}()
 	go loader.Run()
 }
 
@@ -45,7 +42,6 @@ func readRequests(filename string) []Request {
 }
 
 var dbg bool
-var childDone chan string
 
 func main() {
 	//Parsing command-line arguments
@@ -72,9 +68,9 @@ func main() {
 		dieOnError(err)
 	}
 
-	childDone = make(chan string)
-
 	requests := readRequests(*dataFile)
+
+	wg := sync.WaitGroup{}
 
 	//Spawning child processes to replay data.log
 	for i := 0; i < *procCount; i++ {
@@ -86,12 +82,11 @@ func main() {
 			Substitutions: substitutions,
 			Sleep:         *sleep,
 			Rotate:        *rotate,
+			WaitGroup:     &wg,
 		})
 	}
 
-	for i := 0; i < *procCount; i++ {
-		_ = <-childDone
-	}
+	wg.Wait()
 
 	log.Println("All done")
 }

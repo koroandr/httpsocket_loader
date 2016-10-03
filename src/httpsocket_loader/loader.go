@@ -6,6 +6,7 @@ import (
 	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
+	"sync"
 	"time"
 )
 
@@ -17,11 +18,11 @@ type LoaderOptions struct {
 	Substitutions map[string]interface{}
 	Sleep         int
 	Rotate        bool
+	WaitGroup     *sync.WaitGroup
 }
 
 type Loader struct {
 	LoaderOptions
-	Finish          chan string
 	conn            *websocket.Conn
 	send_timestamps map[string]time.Time
 	sumTime         time.Duration
@@ -31,7 +32,6 @@ type Loader struct {
 func NewLoader(opts *LoaderOptions) *Loader {
 	return &Loader{
 		LoaderOptions:   *opts,
-		Finish:          make(chan string),
 		send_timestamps: make(map[string]time.Time),
 	}
 }
@@ -75,7 +75,7 @@ func (loader *Loader) Connect() {
 
 func (loader *Loader) Run() {
 	iter := 0
-
+	loader.WaitGroup.Add(1)
 	for {
 		//Summary time for all requests
 		loader.sumTime = 0
@@ -96,7 +96,7 @@ func (loader *Loader) Run() {
 		iter += 1
 	}
 	log.Printf("[%d] run completed", loader.Num)
-	loader.Finish <- "ok"
+	loader.WaitGroup.Done()
 
 	loader.conn.Close()
 }
