@@ -1,19 +1,19 @@
 package main
 
 import (
-	"log"
-	"flag"
-	"encoding/json"
-	"io/ioutil"
-	"os"
 	"bufio"
+	"encoding/json"
+	"flag"
+	"io/ioutil"
+	"log"
+	"os"
 )
 
 func run(num int, url string, origin string, data []Request, substitutions map[string]interface{}, sleep int, rotate bool) {
 	loader := NewLoader(num, url, origin, data, substitutions, sleep, rotate)
 	loader.Connect()
 	go func() {
-		status := <- loader.Finish
+		status := <-loader.Finish
 		childDone <- status
 	}()
 	go loader.Run()
@@ -31,7 +31,7 @@ func readRequests(filename string) []Request {
 	scanner := bufio.NewScanner(file)
 	scanner.Split(bufio.ScanLines)
 
-	for (scanner.Scan()) {
+	for scanner.Scan() {
 		var req Request
 
 		err := json.Unmarshal(scanner.Bytes(), &req)
@@ -44,9 +44,8 @@ func readRequests(filename string) []Request {
 	return requests
 }
 
-
-var dbg bool;
-var childDone chan string;
+var dbg bool
+var childDone chan string
 
 func main() {
 	//Parsing command-line arguments
@@ -65,7 +64,7 @@ func main() {
 	//Initializing substitutions map
 	substitutions := make(map[string]interface{})
 
-	if (substitutionsFile != nil && *substitutionsFile != "") {
+	if substitutionsFile != nil && *substitutionsFile != "" {
 		substitutionsText, err := ioutil.ReadFile(*substitutionsFile)
 		dieOnError(err)
 

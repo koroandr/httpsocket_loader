@@ -1,7 +1,7 @@
 package main
 
 func dieOnError(err error) {
-	if (err != nil) {
+	if err != nil {
 		panic(err)
 	}
 }

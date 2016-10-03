@@ -1,22 +1,22 @@
 package main
 
 import (
-	"net/http"
-	"github.com/gorilla/websocket"
 	"encoding/json"
 	"fmt"
+	"github.com/gorilla/websocket"
 	"log"
+	"net/http"
 	"time"
 )
 
 type Loader struct {
-	num             int
-	url             string
-	origin          string
-	data            []Request
-	substitutions   map[string]interface{}
-	sleep           int
-	rotate          bool
+	num           int
+	url           string
+	origin        string
+	data          []Request
+	substitutions map[string]interface{}
+	sleep         int
+	rotate        bool
 
 	Finish          chan string
 	conn            *websocket.Conn
@@ -27,14 +27,14 @@ type Loader struct {
 
 func NewLoader(num int, url string, origin string, data []Request, substitutions map[string]interface{}, sleep int, rotate bool) *Loader {
 	return &Loader{
-		num: num,
-		url: url,
-		origin: origin,
-		data: data,
-		substitutions: substitutions,
-		sleep: sleep,
-		rotate: rotate,
-		Finish: make(chan string),
+		num:             num,
+		url:             url,
+		origin:          origin,
+		data:            data,
+		substitutions:   substitutions,
+		sleep:           sleep,
+		rotate:          rotate,
+		Finish:          make(chan string),
 		send_timestamps: make(map[string]time.Time),
 	}
 }
@@ -44,11 +44,11 @@ func (loader *Loader) Connect() {
 	headers := http.Header{}
 
 	//Set the Origin header, if present
-	if (loader.origin != "") {
+	if loader.origin != "" {
 		headers.Add("Origin", loader.origin)
 	}
 	conn, _, err := websocket.DefaultDialer.Dial(loader.url, headers)
-	if (err != nil) {
+	if err != nil {
 		panic(err)
 	}
 	loader.conn = conn
@@ -65,7 +65,7 @@ func (loader *Loader) Connect() {
 			}
 
 			var resp RpcResp
-			if (json.Unmarshal(message, &resp) != nil) {
+			if json.Unmarshal(message, &resp) != nil {
 				log.Printf("[%d] strange response: %s", loader.num, message)
 			} else {
 				loader.recieve(resp.Id)
@@ -86,13 +86,13 @@ func (loader *Loader) Run() {
 
 		loader.send()
 
-		if (loader.requestsCount > 0) {
-			log.Printf("[%d] - iter %d - average time: %d ms", loader.num, iter, loader.sumTime.Nanoseconds() / int64(loader.requestsCount) / 1000000)
+		if loader.requestsCount > 0 {
+			log.Printf("[%d] - iter %d - average time: %d ms", loader.num, iter, loader.sumTime.Nanoseconds()/int64(loader.requestsCount)/1000000)
 		} else {
 			log.Printf("[%d] - iter %d - no successful requests", loader.num, iter)
 		}
 
-		if (!loader.rotate) {
+		if !loader.rotate {
 			break
 		}
 
@@ -116,7 +116,7 @@ func (loader *Loader) send() {
 			case string:
 				req.Substitute(fmt.Sprintf("{{%s}}", key), value)
 			case []interface{}:
-				if val, ok := value[loader.num % len(value)].(string); ok {
+				if val, ok := value[loader.num%len(value)].(string); ok {
 					req.Substitute(fmt.Sprintf("{{%s}}", key), val)
 				}
 			}
@@ -131,7 +131,7 @@ func (loader *Loader) send() {
 
 		err = loader.conn.WriteMessage(websocket.TextMessage, []byte(s))
 
-		if (err != nil) {
+		if err != nil {
 			log.Printf("[%d] Got error while sending a message", loader.num)
 			log.Println(err.Error())
 		} else {
