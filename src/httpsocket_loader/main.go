@@ -58,13 +58,7 @@ func main() {
 	substitutionsFile := flag.String("substitutions", "", "Data file")
 	debug := flag.Bool("debug", false, "Show debug output")
 	rotate := flag.Bool("rotate", false, "cycle logs")
-	help := flag.Bool("help", false, "Print this help")
 	flag.Parse()
-
-	if (*help) {
-		flag.Usage()
-		return
-	}
 
 	dbg = *debug
 
