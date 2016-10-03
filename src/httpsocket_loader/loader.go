@@ -25,20 +25,17 @@ type Loader struct {
 	requestsCount   int
 }
 
-func NewLoader(num int, url string, origin string, data *[]Request, substitutions *map[string]interface{}, sleep int, rotate bool) Loader {
-	return Loader{
-		num,
-		url,
-		origin,
-		data,
-		substitutions,
-		sleep,
-		rotate,
-		make(chan string),
-		nil,
-		make(map[string]int64),
-		0,
-		0,
+func NewLoader(num int, url string, origin string, data *[]Request, substitutions *map[string]interface{}, sleep int, rotate bool) *Loader {
+	return &Loader{
+		num: num,
+		url: url,
+		origin: origin,
+		data: data,
+		substitutions: substitutions,
+		sleep: sleep,
+		rotate: rotate,
+		Finish: make(chan string),
+		send_timestamps: make(map[string]int64),
 	}
 }
 
