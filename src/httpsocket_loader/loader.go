@@ -53,12 +53,8 @@ func (loader *Loader) Connect() {
 	}
 	loader.conn = conn
 
-	//Response handling
-	done := make(chan string)
-
 	go func() {
 		defer conn.Close()
-		defer close(done)
 		for {
 			_, message, err := conn.ReadMessage()
 			if err != nil {
