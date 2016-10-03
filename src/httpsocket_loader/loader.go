@@ -112,12 +112,11 @@ func (loader *Loader) send() {
 
 		//Substituting some data (mustache-style)
 		for key, value := range *loader.substitutions {
-			switch value.(type) {
+			switch value := value.(type) {
 			case string:
-				req.Substitute(fmt.Sprintf("{{%s}}", key), value.(string))
+				req.Substitute(fmt.Sprintf("{{%s}}", key), value)
 			case []interface{}:
-				arr := value.([]interface{})
-				if val, ok := arr[loader.num % len(arr)].(string); ok {
+				if val, ok := value[loader.num % len(value)].(string); ok {
 					req.Substitute(fmt.Sprintf("{{%s}}", key), val)
 				}
 			}
