@@ -22,6 +22,7 @@ func run(num int, url string, origin string, data []Request, substitutions map[s
 // Load JSON-RPC requests from data file (they must be placed line by line)
 func readRequests(filename string) []Request {
 	file, err := os.Open(filename)
+	defer file.Close()
 	if (err != nil) {
 		panic(err)
 	}
