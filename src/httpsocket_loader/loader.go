@@ -131,8 +131,14 @@ func (loader *Loader) send() {
 			log.Printf("[%d] req: %s", loader.num, s)
 		}
 
-		loader.conn.WriteMessage(websocket.TextMessage, []byte(s))
-		loader.send_timestamps[req.Id] = time.Now().UnixNano()
+		err = loader.conn.WriteMessage(websocket.TextMessage, []byte(s))
+
+		if (err != nil) {
+			log.Println("Got error while sending a message")
+			log.Println(err.Error())
+		} else {
+			loader.send_timestamps[req.Id] = time.Now().UnixNano()
+		}
 
 		time.Sleep(time.Duration(loader.sleep) * time.Millisecond)
 	}
