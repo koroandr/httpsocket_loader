@@ -24,11 +24,12 @@ type LoaderOptions struct {
 
 type Loader struct {
 	LoaderOptions
-	conn            *websocket.Conn
-	send_timestamps map[string]time.Time
-	sumTime         time.Duration
-	requestsCount   int
-	rwMutex         sync.RWMutex
+	conn                   *websocket.Conn
+	send_timestamps        map[string]time.Time
+	sumTime                time.Duration
+	sumTimeWithoutUpstream time.Duration
+	requestsCount          int
+	rwMutex                sync.RWMutex
 }
 
 func NewLoader(opts *LoaderOptions) *Loader {
@@ -67,7 +68,7 @@ func (loader *Loader) Connect() {
 			if json.Unmarshal(message, &resp) != nil {
 				log.Printf("[%d] strange response: %s", loader.Num, message)
 			} else {
-				loader.recieve(resp.Id)
+				loader.recieve(resp.Id, 50*time.Millisecond) //TODO: запарсить настоящее время из json'а
 			}
 		}
 	}()
@@ -81,6 +82,7 @@ func (loader *Loader) Run() {
 	for {
 		//Summary time for all requests
 		loader.sumTime = 0
+		loader.sumTimeWithoutUpstream = 0
 		loader.requestsCount = 0
 
 		loader.send()
@@ -88,8 +90,10 @@ func (loader *Loader) Run() {
 		if loader.requestsCount > 0 {
 			total_lock.Lock()
 			total_cnt += loader.sumTime.Nanoseconds() / int64(loader.requestsCount) / 1000000
+			total_cnt_without_upstream += loader.sumTimeWithoutUpstream.Nanoseconds() / int64(loader.requestsCount) / 1000000
 			total_lock.Unlock()
 			log.Printf("[%d] - iter %d - average time: %d ms", loader.Num, iter, loader.sumTime.Nanoseconds()/int64(loader.requestsCount)/1000000)
+			log.Printf("[%d] - iter %d - average time (excl. upstream): %d ms", loader.Num, iter, loader.sumTimeWithoutUpstream.Nanoseconds()/int64(loader.requestsCount)/1000000)
 		} else {
 			log.Printf("[%d] - iter %d - no successful requests", loader.Num, iter)
 		}
@@ -146,9 +150,10 @@ func (loader *Loader) send() {
 	}
 }
 
-func (loader *Loader) recieve(id string) {
+func (loader *Loader) recieve(id string, mapiTime time.Duration) {
 	loader.rwMutex.RLock()
 	loader.sumTime += time.Since(loader.send_timestamps[id])
+	loader.sumTimeWithoutUpstream += time.Since(loader.send_timestamps[id]) - mapiTime
 	loader.rwMutex.RUnlock()
 	loader.requestsCount += 1
 }

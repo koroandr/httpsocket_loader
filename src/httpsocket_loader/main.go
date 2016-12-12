@@ -44,6 +44,7 @@ func readRequests(filename string) []Request {
 
 var dbg bool
 var total_cnt int64
+var total_cnt_without_upstream int64
 var total_lock sync.Mutex
 
 func main() {
@@ -106,7 +107,7 @@ func main() {
 
 	wg.Wait()
 
-	fmt.Printf("avg time %.1f\n", float64(total_cnt)/float64(*procCount))
+	fmt.Printf("avg time %.1f,\tavg proxy time %.1f\n", float64(total_cnt)/float64(*procCount), float64(total_cnt_without_upstream)/float64(*procCount))
 
 	log.Println("All done")
 }
