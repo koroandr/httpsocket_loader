@@ -12,14 +12,15 @@ import (
 )
 
 type LoaderOptions struct {
-	Num           int
-	Url           string
-	Origin        string
-	Requests      []Request
-	Substitutions map[string]interface{}
-	Sleep         int
-	Rotate        bool
-	WaitGroup     *sync.WaitGroup
+	Num            int
+	Url            string
+	Origin         string
+	Requests       []Request
+	Substitutions  map[string]interface{}
+	Sleep          int
+	Rotate         bool
+	RandomizeStart bool
+	WaitGroup      *sync.WaitGroup
 }
 
 type Loader struct {
@@ -79,6 +80,11 @@ func (loader *Loader) Connect() {
 func (loader *Loader) Run() {
 	iter := 0
 	loader.WaitGroup.Add(1)
+	if loader.LoaderOptions.RandomizeStart {
+		delay := rand.Intn(loader.LoaderOptions.Sleep)
+		log.Printf("[%d] - starting with delay %d\n", loader.Num, delay)
+		time.Sleep(time.Duration(delay) * time.Millisecond)
+	}
 	for {
 		//Summary time for all requests
 		loader.sumTime = 0

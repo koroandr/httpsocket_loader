@@ -7,8 +7,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"os"
 	"sync"
+	"time"
 )
 
 func run(opts *LoaderOptions) {
@@ -58,6 +60,7 @@ func main() {
 	substitutionsFile := flag.String("substitutions", "", "Data file")
 	debug := flag.Bool("debug", false, "Show debug output")
 	rotate := flag.Bool("rotate", false, "cycle logs")
+	randomizeStart := flag.Bool("randomize-start", false, "Randomize start delay (between 0 and sleep)")
 	flag.Parse()
 
 	dbg = *debug
@@ -75,6 +78,8 @@ func main() {
 	if *sleep == 0 {
 		*sleep = 1000 / *rps
 	}
+
+	rand.Seed(time.Now().UnixNano())
 
 	//Initializing substitutions map
 	substitutions := make(map[string]interface{})
@@ -94,14 +99,15 @@ func main() {
 	//Spawning child processes to replay data.log
 	for i := 0; i < *procCount; i++ {
 		run(&LoaderOptions{
-			Num:           i,
-			Url:           *url,
-			Origin:        *origin,
-			Requests:      requests,
-			Substitutions: substitutions,
-			Sleep:         *sleep,
-			Rotate:        *rotate,
-			WaitGroup:     &wg,
+			Num:            i,
+			Url:            *url,
+			Origin:         *origin,
+			Requests:       requests,
+			Substitutions:  substitutions,
+			Sleep:          *sleep,
+			Rotate:         *rotate,
+			WaitGroup:      &wg,
+			RandomizeStart: *randomizeStart,
 		})
 	}
 
