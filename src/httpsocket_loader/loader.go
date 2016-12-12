@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/gorilla/websocket"
 	"log"
+	"math/rand"
 	"net/http"
 	"sync"
 	"time"
@@ -27,6 +28,7 @@ type Loader struct {
 	send_timestamps map[string]time.Time
 	sumTime         time.Duration
 	requestsCount   int
+	rwMutex         sync.RWMutex
 }
 
 func NewLoader(opts *LoaderOptions) *Loader {
@@ -84,6 +86,9 @@ func (loader *Loader) Run() {
 		loader.send()
 
 		if loader.requestsCount > 0 {
+			total_lock.Lock()
+			total_cnt += loader.sumTime.Nanoseconds() / int64(loader.requestsCount) / 1000000
+			total_lock.Unlock()
 			log.Printf("[%d] - iter %d - average time: %d ms", loader.Num, iter, loader.sumTime.Nanoseconds()/int64(loader.requestsCount)/1000000)
 		} else {
 			log.Printf("[%d] - iter %d - no successful requests", loader.Num, iter)
@@ -113,7 +118,7 @@ func (loader *Loader) send() {
 			case string:
 				req.Substitute(fmt.Sprintf("{{%s}}", key), value)
 			case []interface{}:
-				if val, ok := value[loader.Num%len(value)].(string); ok {
+				if val, ok := value[rand.Int()%len(value)].(string); ok {
 					req.Substitute(fmt.Sprintf("{{%s}}", key), val)
 				}
 			}
@@ -132,7 +137,9 @@ func (loader *Loader) send() {
 			log.Printf("[%d] Got error while sending a message", loader.Num)
 			log.Println(err.Error())
 		} else {
+			loader.rwMutex.Lock()
 			loader.send_timestamps[req.Id] = time.Now()
+			loader.rwMutex.Unlock()
 		}
 
 		time.Sleep(time.Duration(loader.Sleep) * time.Millisecond)
@@ -140,7 +147,9 @@ func (loader *Loader) send() {
 }
 
 func (loader *Loader) recieve(id string) {
+	loader.rwMutex.RLock()
 	loader.sumTime += time.Since(loader.send_timestamps[id])
+	loader.rwMutex.RUnlock()
 	loader.requestsCount += 1
 }
 

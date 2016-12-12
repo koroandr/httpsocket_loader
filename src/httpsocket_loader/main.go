@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -42,6 +43,8 @@ func readRequests(filename string) []Request {
 }
 
 var dbg bool
+var total_cnt int64
+var total_lock sync.Mutex
 
 func main() {
 	//Parsing command-line arguments
@@ -49,13 +52,28 @@ func main() {
 	url := flag.String("url", "", "WebSocket endpoint url")
 	origin := flag.String("origin", "", "Origin header")
 	procCount := flag.Int("proc", 1, "Number of processes to run")
-	sleep := flag.Int("sleep", 100, "Sleep time between requests in milliseconds")
+	sleep := flag.Int("sleep", 0, "Sleep time between requests in milliseconds (cannot be used with rps)")
+	rps := flag.Int("rps", 0, "requests per second for each process (cannot be used with sleep)")
 	substitutionsFile := flag.String("substitutions", "", "Data file")
 	debug := flag.Bool("debug", false, "Show debug output")
 	rotate := flag.Bool("rotate", false, "cycle logs")
 	flag.Parse()
 
 	dbg = *debug
+
+	if *sleep != 0 && *rps != 0 {
+		fmt.Println("Cannot use rps and sleep flags simultaneously")
+		return
+	}
+
+	if *sleep == 0 && *rps == 0 {
+		fmt.Println("You must specify either rps or sleep flag")
+		return
+	}
+
+	if *sleep == 0 {
+		*sleep = 1000 / *rps
+	}
 
 	//Initializing substitutions map
 	substitutions := make(map[string]interface{})
@@ -87,6 +105,8 @@ func main() {
 	}
 
 	wg.Wait()
+
+	fmt.Printf("avg time %.1f\n", float64(total_cnt)/float64(*procCount))
 
 	log.Println("All done")
 }
