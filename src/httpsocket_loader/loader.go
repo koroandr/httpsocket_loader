@@ -156,10 +156,10 @@ func (loader *Loader) send() {
 	}
 }
 
-func (loader *Loader) recieve(id string, mapiTime time.Duration) {
+func (loader *Loader) recieve(id string, upstreamTime time.Duration) {
 	loader.rwMutex.RLock()
 	loader.sumTime += time.Since(loader.send_timestamps[id])
-	loader.sumTimeWithoutUpstream += time.Since(loader.send_timestamps[id]) - mapiTime
+	loader.sumTimeWithoutUpstream += time.Since(loader.send_timestamps[id]) - upstreamTime
 	loader.rwMutex.RUnlock()
 	loader.requestsCount += 1
 }
