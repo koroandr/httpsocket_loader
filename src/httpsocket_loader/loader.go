@@ -69,7 +69,7 @@ func (loader *Loader) Connect() {
 			if json.Unmarshal(message, &resp) != nil {
 				log.Printf("[%d] strange response: %s", loader.Num, message)
 			} else {
-				loader.recieve(resp.Id, 50*time.Millisecond) //TODO: запарсить настоящее время из json'а
+				loader.recieve(resp.Id, time.Duration(resp.UpstreamResponseTimeSeconds*1000)*time.Millisecond)
 			}
 		}
 	}()
@@ -165,5 +165,6 @@ func (loader *Loader) recieve(id string, upstreamTime time.Duration) {
 }
 
 type RpcResp struct {
-	Id string `json:"id"`
+	Id                          string  `json:"id"`
+	UpstreamResponseTimeSeconds float32 `json:"upstream_response_time_seconds"`
 }
