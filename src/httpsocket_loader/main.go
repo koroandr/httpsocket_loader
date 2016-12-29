@@ -56,11 +56,12 @@ func main() {
 	origin := flag.String("origin", "", "Origin header")
 	procCount := flag.Int("proc", 1, "Number of processes to run")
 	sleep := flag.Int("sleep", 0, "Sleep time between requests in milliseconds (cannot be used with rps)")
-	rps := flag.Int("rps", 0, "requests per second for each process (cannot be used with sleep)")
+	rps := flag.Float64("rps", 0, "requests per second for each process (cannot be used with sleep)")
 	substitutionsFile := flag.String("substitutions", "", "Data file")
 	debug := flag.Bool("debug", false, "Show debug output")
 	rotate := flag.Bool("rotate", false, "cycle logs")
 	randomizeStart := flag.Bool("randomize-start", false, "Randomize start delay (between 0 and sleep)")
+	timeLimit := flag.Int("time-limit", 60, "Running time limit in seconds")
 	flag.Parse()
 
 	dbg = *debug
@@ -76,7 +77,7 @@ func main() {
 	}
 
 	if *sleep == 0 {
-		*sleep = 1000 / *rps
+		*sleep = int(float64(1000) / *rps)
 	}
 
 	rand.Seed(time.Now().UnixNano())
@@ -93,6 +94,8 @@ func main() {
 	}
 
 	requests := readRequests(*dataFile)
+
+	requests = requests[0 : *timeLimit*1000 / *sleep]
 
 	wg := sync.WaitGroup{}
 
@@ -113,7 +116,11 @@ func main() {
 
 	wg.Wait()
 
-	fmt.Printf("avg time %.1f,\tavg proxy time %.1f\n", float64(total_cnt)/float64(*procCount), float64(total_cnt_without_upstream)/float64(*procCount))
+	printStats(*procCount)
 
 	log.Println("All done")
+}
+
+func printStats(procCount int) {
+	fmt.Printf("avg time %.1f,\tavg proxy time %.1f\n", float64(total_cnt)/float64(procCount), float64(total_cnt_without_upstream)/float64(procCount))
 }
