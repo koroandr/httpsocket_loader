@@ -118,7 +118,9 @@ func (loader *Loader) Run() {
 
 func (loader *Loader) send() {
 	//Updating JSON with process-specific substitutions and sending it to WS
-	for _, req := range loader.Requests {
+
+	for _, i := range rand.Perm(len(loader.Requests)) {
+		req := loader.Requests[i]
 		//Setting new id to prevent conflicts between different loaders
 		req.RenewId()
 
